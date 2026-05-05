@@ -5,6 +5,30 @@ Este projeto implementa um sistema de negociacao de ativos (ações/criptomoedas
 A arquitetura e dividida em modulos independentes que rodam em JVMs distintas e se comunicam exclusivamente via rede utilizando Sockets TCP, Java RMI e gRPC.
 
 ---
+## Regras de Negocio e Logica de Mercado
+
+O sistema simula o funcionamento real de uma bolsa de valores, operando sob o modelo de **Leilao Duplo Continuo** (Continuous Double Auction) e seguindo diretrizes estritas de integridade financeira e concorrencia.
+
+### 1. O Livro de Ofertas (Order Book) e o "Match"
+O nucleo da corretora (Modulo 2) tem a funcao de gerenciar o Livro de Ofertas e casar ordens de compra e venda que possuam precos compativeis[cite: 1].  Para isso, o sistema divide as intencoes dos investidores em duas filas distintas para cada ativo (ex: PETR4):
+
+*   **Fila de Compras (Bids):** Os investidores que desejam comprar querem pagar o menor preco possivel, mas a prioridade na fila e dada a quem **oferece o maior preco**.
+*   **Fila de Vendas (Asks):** Os investidores que desejam vender querem lucrar o maximo possivel, mas a prioridade na fila e dada a quem **aceita o menor preco**.
+
+**A Regra do Casamento (Matching):**
+Um negocio so e fechado quando o preco oferecido pelo primeiro comprador da fila e **maior ou igual** ao preco exigido pelo primeiro vendedor da fila[cite: 1]. Se uma ordem for maior em quantidade do que a sua contraparte, o sistema realiza uma execucao parcial e recria uma nova ordem com o saldo restante, reinserindo-a no livro para aguardar um novo comprador/vendedor.
+
+### 2. Prioridade por Ordem de Chegada e Concorrencia
+Como o sistema recebe fluxos massivos de ordens de multiplas corretoras simultaneamente, ele deve garantir que as ordens sejam processadas por ordem de chegada[cite: 1].
+
+*   **Desempate:** Se dois investidores oferecerem exatamente o mesmo preco por uma acao, a prioridade absoluta e dada a ordem que chegou primeiro ao sistema (avaliada pelo `timestamp` exato da criacao da ordem)[cite: 1].
+*   **Thread-Safety:** O motor garante que a mesma acao nao seja processada duas vezes e que o acesso ao livro de ofertas nao gere condicoes de corrida (Race Conditions)[cite: 1]. Isso e feito aplicando bloqueios (Locks) em nivel de ativo, permitindo que o livro da VALE3 seja processado em paralelo com o livro da PETR4, mas serializando as modificacoes dentro de um mesmo ativo.
+
+### 3. Validacao Financeira (Custodia) e Resiliencia
+A bolsa de valores atua apenas como intermediaria; ela nao detem o dinheiro nem as acoes. Por isso, a regra de liquidacao exige comunicacao com o Sistema de Custodia (Modulo 3)[cite: 1].
+
+*   **Bloqueio de Saldo:** O Broker (Core) e obrigatoriamente exigido a consultar o servico de Custodia antes de confirmar qualquer transacao[cite: 1]. Mesmo que dois investidores concordem com o preco no Livro de Ofertas, o negocio e abortado e a ordem e descartada se o comprador nao tiver saldo financeiro suficiente.
+*   **Circuit Breaker (Suspensao de Negocios):** O sistema possui uma regra de protecao contra falhas em cascata. O sistema deve tratar quedas de conexao ou indisponibilidade dos servicos; especificamente, se o sistema de custodia cair, o core da corretora deve suspender as negociacoes imediatamente[cite: 1]. Nenhuma acao pode trocar de maos sem a garantia de registro na custodia.
 
 ## Fluxo de Comunicacao
 
