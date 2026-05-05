@@ -1,0 +1,38 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "br.com.broker.shared.grpc";
+option java_outer_classname = "CustodyProto";
+
+package custody;
+
+service CustodyService {
+
+    rpc ValidateBalance (BalanceRequest) returns (BalanceResponse);
+    rpc StreamSettlements (SettlementRequest) returns (stream SettlementEvent);
+
+}
+
+message BalanceRequest {
+    string investorId = 1;
+    string assetSymbol = 2;
+    double amountRequired = 3;
+    string orderSide = 4;
+}
+
+message BalanceResponse {
+    bool isValid = 1;
+    string errorMessage = 2;
+}
+
+message SettlementRequest {
+    string brokerCoreId = 1;
+}
+
+message SettlementEvent {
+    string tradeId = 1;
+    string investorId = 2;
+    string assetSymbol = 3;
+    double newBalance = 4;
+    string status = 5;
+}

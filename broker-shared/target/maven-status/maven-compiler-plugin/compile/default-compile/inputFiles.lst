@@ -1,0 +1,15 @@
+C:\Users\LuizGustavoMellaMass\IdeaProjects\java-corretora-de-valores\broker-shared\src\main\java\br\com\broker\shared\domain\Order.java
+C:\Users\LuizGustavoMellaMass\IdeaProjects\java-corretora-de-valores\broker-shared\src\main\java\br\com\broker\shared\domain\OrderSide.java
+C:\Users\LuizGustavoMellaMass\IdeaProjects\java-corretora-de-valores\broker-shared\src\main\java\br\com\broker\shared\domain\Trade.java
+C:\Users\LuizGustavoMellaMass\IdeaProjects\java-corretora-de-valores\broker-shared\src\main\java\br\com\broker\shared\rmi\MarketMetricsRemote.java
+C:\Users\LuizGustavoMellaMass\IdeaProjects\java-corretora-de-valores\broker-shared\src\main\java\br\com\broker\shared\rmi\OrderSubmissionRemote.java
+C:\Users\LuizGustavoMellaMass\IdeaProjects\java-corretora-de-valores\broker-shared\target\generated-sources\protobuf\grpc-java\br\com\broker\shared\grpc\CustodyServiceGrpc.java
+C:\Users\LuizGustavoMellaMass\IdeaProjects\java-corretora-de-valores\broker-shared\target\generated-sources\protobuf\java\br\com\broker\shared\grpc\BalanceRequest.java
+C:\Users\LuizGustavoMellaMass\IdeaProjects\java-corretora-de-valores\broker-shared\target\generated-sources\protobuf\java\br\com\broker\shared\grpc\BalanceRequestOrBuilder.java
+C:\Users\LuizGustavoMellaMass\IdeaProjects\java-corretora-de-valores\broker-shared\target\generated-sources\protobuf\java\br\com\broker\shared\grpc\BalanceResponse.java
+C:\Users\LuizGustavoMellaMass\IdeaProjects\java-corretora-de-valores\broker-shared\target\generated-sources\protobuf\java\br\com\broker\shared\grpc\BalanceResponseOrBuilder.java
+C:\Users\LuizGustavoMellaMass\IdeaProjects\java-corretora-de-valores\broker-shared\target\generated-sources\protobuf\java\br\com\broker\shared\grpc\CustodyProto.java
+C:\Users\LuizGustavoMellaMass\IdeaProjects\java-corretora-de-valores\broker-shared\target\generated-sources\protobuf\java\br\com\broker\shared\grpc\SettlementEvent.java
+C:\Users\LuizGustavoMellaMass\IdeaProjects\java-corretora-de-valores\broker-shared\target\generated-sources\protobuf\java\br\com\broker\shared\grpc\SettlementEventOrBuilder.java
+C:\Users\LuizGustavoMellaMass\IdeaProjects\java-corretora-de-valores\broker-shared\target\generated-sources\protobuf\java\br\com\broker\shared\grpc\SettlementRequest.java
+C:\Users\LuizGustavoMellaMass\IdeaProjects\java-corretora-de-valores\broker-shared\target\generated-sources\protobuf\java\br\com\broker\shared\grpc\SettlementRequestOrBuilder.java
