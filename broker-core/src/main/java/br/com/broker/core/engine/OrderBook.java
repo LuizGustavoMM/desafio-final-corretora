@@ -16,9 +16,9 @@ public class OrderBook {
     private final PriorityQueue<Order> buyOrders;
     private final PriorityQueue<Order> sellOrders;
     private final ReentrantLock lock = new ReentrantLock();
-
-    // Instancia o cliente gRPC para falar com a Custódia
     private final CustodyClient custodyClient = new CustodyClient();
+    private BigDecimal lastPrice = BigDecimal.ZERO;
+    private int tradedVolume = 0;
 
     public OrderBook(String assetSymbol) {
         this.assetSymbol = assetSymbol;
@@ -46,43 +46,47 @@ public class OrderBook {
             Order bestSell = sellOrders.peek();
 
             if (bestBuy.getPrice().compareTo(bestSell.getPrice()) >= 0) {
-
                 int tradeQuantity = Math.min(bestBuy.getQuantity(), bestSell.getQuantity());
                 BigDecimal tradePrice = bestSell.getPrice();
-
-                // --- VALIDACAO COM O SISTEMA DE CUSTODIA (gRPC) ---
                 double totalValueRequired = tradePrice.doubleValue() * tradeQuantity;
-                boolean isBuyerValid = custodyClient.validateInvestorBalance(
-                        bestBuy.getInvestorId(), assetSymbol, totalValueRequired, "BUY");
 
-                if (!isBuyerValid) {
-                    System.out.println("-> Descartando ordem do investidor " + bestBuy.getInvestorId() + " por falta de saldo ou indisponibilidade.");
-                    buyOrders.poll(); // Remove o comprador sem saldo da fila
-                    continue; // Tenta o próximo par
+                boolean isBuyerValid;
+                try {
+                    isBuyerValid = custodyClient.validateInvestorBalance(bestBuy.getInvestorId(), assetSymbol, totalValueRequired, "BUY");
+                } catch (RuntimeException e) {
+                    // REQUISITO 11: Circuit Breaker. Para de processar esse ativo imediatamente.
+                    System.err.println("CRITICO: Custodia offline! Negociacoes de " + assetSymbol + " suspensas.");
+                    break;
                 }
 
-                // Retira as ordens das filas (O negócio vai acontecer)
+                if (!isBuyerValid) {
+                    buyOrders.poll();
+                    continue;
+                }
+
                 buyOrders.poll();
                 sellOrders.poll();
 
-                Trade trade = new Trade(assetSymbol, bestBuy.getInvestorId(), bestSell.getInvestorId(), tradeQuantity, tradePrice);
-                System.out.println("NEGÓCIO FECHADO: " + trade);
+                // Atualiza Metricas
+                this.lastPrice = tradePrice;
+                this.tradedVolume += tradeQuantity;
 
-                // Lida com execuções parciais
+                Trade trade = new Trade(assetSymbol, bestBuy.getInvestorId(), bestSell.getInvestorId(), tradeQuantity, tradePrice);
+                System.out.println("MATCH: " + trade);
+
                 if (bestBuy.getQuantity() > tradeQuantity) {
                     buyOrders.add(new Order(bestBuy.getBrokerId(), bestBuy.getInvestorId(), bestBuy.getAssetSymbol(), bestBuy.getSide(), bestBuy.getQuantity() - tradeQuantity, bestBuy.getPrice()));
                 }
                 if (bestSell.getQuantity() > tradeQuantity) {
                     sellOrders.add(new Order(bestSell.getBrokerId(), bestSell.getInvestorId(), bestSell.getAssetSymbol(), bestSell.getSide(), bestSell.getQuantity() - tradeQuantity, bestSell.getPrice()));
                 }
-
             } else {
-                break; // Precos nao casam
+                break;
             }
         }
     }
 
-    public String getAssetSymbol() {
-        return assetSymbol;
-    }
+    public BigDecimal getLastPrice() { return lastPrice; }
+    public int getTradedVolume() { return tradedVolume; }
+    public String getAssetSymbol() { return assetSymbol; }
 }
