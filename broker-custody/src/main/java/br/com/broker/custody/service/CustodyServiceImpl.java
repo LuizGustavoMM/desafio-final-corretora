@@ -15,11 +15,10 @@ import java.util.concurrent.CopyOnWriteArrayList;
 public class CustodyServiceImpl extends CustodyServiceGrpc.CustodyServiceImplBase {
 
     private final Map<String, Double> mockDatabase = new ConcurrentHashMap<>();
-
-    // Lista thread-safe para guardar todos os Cores conectados no streaming
     private final List<StreamObserver<SettlementEvent>> observers = new CopyOnWriteArrayList<>();
 
     public CustodyServiceImpl() {
+        // Saldo inicial do investidor
         mockDatabase.put("investidor-123", 100000.0);
     }
 
@@ -27,6 +26,7 @@ public class CustodyServiceImpl extends CustodyServiceGrpc.CustodyServiceImplBas
     public void validateBalance(BalanceRequest request, StreamObserver<BalanceResponse> responseObserver) {
         boolean hasBalance = true;
         String errorMsg = "";
+        double updatedBalance = 0.0; // Variável para guardar o saldo atualizado
 
         if (request.getOrderSide().equals("BUY")) {
             double currentBalance = mockDatabase.getOrDefault(request.getInvestorId(), 0.0);
@@ -34,9 +34,13 @@ public class CustodyServiceImpl extends CustodyServiceGrpc.CustodyServiceImplBas
                 hasBalance = false;
                 errorMsg = "Saldo insuficiente.";
             } else {
-                // Simula o debito na conta
-                mockDatabase.put(request.getInvestorId(), currentBalance - request.getAmountRequired());
+                // Calcula o novo saldo e atualiza o banco de dados simulado
+                updatedBalance = currentBalance - request.getAmountRequired();
+                mockDatabase.put(request.getInvestorId(), updatedBalance);
             }
+        } else {
+            // Se for venda, apenas pegamos o saldo atual (na vida real, a venda adicionaria dinheiro)
+            updatedBalance = mockDatabase.getOrDefault(request.getInvestorId(), 0.0);
         }
 
         BalanceResponse response = BalanceResponse.newBuilder()
@@ -47,12 +51,14 @@ public class CustodyServiceImpl extends CustodyServiceGrpc.CustodyServiceImplBas
         responseObserver.onNext(response);
         responseObserver.onCompleted();
 
+        // Dispara o evento de liquidação no Streaming COM O NOVO SALDO
         if (hasBalance) {
             for (StreamObserver<SettlementEvent> observer : observers) {
                 try {
                     SettlementEvent event = SettlementEvent.newBuilder()
                             .setTradeId("TRD-" + System.currentTimeMillis())
                             .setInvestorId(request.getInvestorId())
+                            .setNewBalance(updatedBalance) // <-- ENVIANDO O SALDO ATUALIZADO
                             .setStatus("LIQUIDADO")
                             .build();
                     observer.onNext(event);
@@ -65,7 +71,7 @@ public class CustodyServiceImpl extends CustodyServiceGrpc.CustodyServiceImplBas
 
     @Override
     public void streamSettlements(SettlementRequest request, StreamObserver<SettlementEvent> responseObserver) {
-        System.out.println("[Custodia] Novo Core conectado no streaming: " + request.getBrokerCoreId());
+        System.out.println("[Custódia] Novo Core conectado no streaming: " + request.getBrokerCoreId());
         observers.add(responseObserver);
 
         SettlementEvent welcomeEvent = SettlementEvent.newBuilder()

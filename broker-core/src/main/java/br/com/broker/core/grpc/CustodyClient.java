@@ -20,15 +20,22 @@ public class CustodyClient {
         CustodyServiceGrpc.CustodyServiceStub asyncStub = CustodyServiceGrpc.newStub(channel);
         SettlementRequest req = SettlementRequest.newBuilder().setBrokerCoreId("CORE-01").build();
 
+        // Fica escutando as atualizações de saldo e liquidação da Custódia em tempo real
         asyncStub.streamSettlements(req, new StreamObserver<SettlementEvent>() {
             @Override
             public void onNext(SettlementEvent value) {
-                System.out.println("[Streaming] Atualizacao de Custodia: " + value.getTradeId() + " | Status: " + value.getStatus());
+                // <-- IMPRIMINDO A NOTIFICAÇÃO COMPLETA COM O SALDO
+                if (!value.getTradeId().equals("SYS-000")) {
+                    System.out.println("[Streaming] 💰 Notificação de Liquidação (" + value.getTradeId() +
+                            ") | Investidor: " + value.getInvestorId() +
+                            " | Novo Saldo: R$ " + String.format("%.2f", value.getNewBalance()) +
+                            " | Status: " + value.getStatus());
+                }
             }
 
             @Override
             public void onError(Throwable t) {
-                System.err.println("[Streaming] Conexao com Custodia perdida!");
+                System.err.println("[Streaming] Conexão com Custódia perdida!");
             }
 
             @Override
