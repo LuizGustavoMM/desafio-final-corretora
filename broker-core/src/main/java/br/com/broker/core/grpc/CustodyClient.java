@@ -3,21 +3,44 @@ package br.com.broker.core.grpc;
 import br.com.broker.shared.grpc.BalanceRequest;
 import br.com.broker.shared.grpc.BalanceResponse;
 import br.com.broker.shared.grpc.CustodyServiceGrpc;
+import br.com.broker.shared.grpc.SettlementEvent;
+import br.com.broker.shared.grpc.SettlementRequest;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
+import io.grpc.stub.StreamObserver;
 
 public class CustodyClient {
 
     private final CustodyServiceGrpc.CustodyServiceBlockingStub blockingStub;
 
     public CustodyClient() {
-        // Cria um canal conectando no servidor de Custódia (Módulo 3)
-        ManagedChannel channel = ManagedChannelBuilder.forAddress("localhost", 9090)
-                .usePlaintext() // usePlaintext desabilita SSL/TLS, ideal para testes locais
-                .build();
-
-        // O BlockingStub faz com que a Thread espere a resposta do servidor para continuar
+        ManagedChannel channel = ManagedChannelBuilder.forAddress("localhost", 9090).usePlaintext().build();
         this.blockingStub = CustodyServiceGrpc.newBlockingStub(channel);
+
+        CustodyServiceGrpc.CustodyServiceStub asyncStub = CustodyServiceGrpc.newStub(channel);
+        SettlementRequest req = SettlementRequest.newBuilder().setBrokerCoreId("CORE-01").build();
+
+        // Fica escutando as atualizações de saldo e liquidação da Custódia em tempo real
+        asyncStub.streamSettlements(req, new StreamObserver<SettlementEvent>() {
+            @Override
+            public void onNext(SettlementEvent value) {
+                // <-- IMPRIMINDO A NOTIFICAÇÃO COMPLETA COM O SALDO
+                if (!value.getTradeId().equals("SYS-000")) {
+                    System.out.println("[Streaming] 💰 Notificação de Liquidação (" + value.getTradeId() +
+                            ") | Investidor: " + value.getInvestorId() +
+                            " | Novo Saldo: R$ " + String.format("%.2f", value.getNewBalance()) +
+                            " | Status: " + value.getStatus());
+                }
+            }
+
+            @Override
+            public void onError(Throwable t) {
+                System.err.println("[Streaming] Conexão com Custódia perdida!");
+            }
+
+            @Override
+            public void onCompleted() { }
+        });
     }
 
     public boolean validateInvestorBalance(String investorId, String assetSymbol, double amountRequired, String side) {
@@ -29,18 +52,10 @@ public class CustodyClient {
                 .build();
 
         try {
-            // Faz a chamada remota via gRPC
             BalanceResponse response = blockingStub.validateBalance(request);
-
-            if (!response.getIsValid()) {
-                System.out.println("[Core] ERROR: Negócio bloqueado pela Custódia: " + response.getErrorMessage());
-            }
             return response.getIsValid();
-
         } catch (Exception e) {
-            System.err.println("[Core] Warning: Sistema de Custódia Indisponível! Abortando validação.");
-            // Se a custódia cair, retornamos false para suspender as negociações, cumprindo a regra!
-            return false;
+            throw new RuntimeException("CUSTODY_OFFLINE");
         }
     }
 }
